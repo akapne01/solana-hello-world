@@ -8,6 +8,15 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
+/// Define instructions that could be passed to the entrypoint
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+enum Instructions {
+    GreetUser {
+        username: String,
+    },
+    GreetAnonymous,
+}
+
 /// Define the type of state stored in accounts/
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct GreetingAccount {
@@ -26,6 +35,19 @@ pub fn process_instruction(
 ) -> ProgramResult {
     msg!("Hello World Rust program entrypoint");
 
+    // Read instruction data
+    let instruction = Instructions::try_from_slice(instruction_data)?;
+    match instruction {
+        Instructions::GreetAnonymous => {
+            msg!("Hello, Anonymous");
+        }
+        Instructions::GreetUser { username } => {
+            msg!("Hello, {}", username);
+        }
+    }
+
+    // Read account data
+
     // Iterating accounts is safer than indexing
     let accounts_iter = &mut accounts.iter();
 
@@ -40,6 +62,7 @@ pub fn process_instruction(
 
     let mut greeting_account = GreetingAccount::try_from_slice(&account.data.borrow())?;
     greeting_account.counter += 1;
+    // Store its updated state back to the storage account.
     greeting_account.serialize(&mut &mut account.data.borrow_mut()[..])?;
 
     msg!("Greeted {} time(s)!", greeting_account.counter);
