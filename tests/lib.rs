@@ -15,11 +15,14 @@ async fn test_helloworld() {
     let program_id = Pubkey::new_unique();
     let greeted_pubkey = Pubkey::new_unique();
 
+    // Test environment
     let mut program_test = ProgramTest::new(
         "helloworld", // Run the BPF version with `cargo test-bpf`
         program_id,
         processor!(process_instruction) // Run the native version with `cargo test`
     );
+
+    // Adds account to our test environment. This will increment the counter. 
     program_test.add_account(greeted_pubkey, Account {
         lamports: 5,
         data: vec![0_u8; mem::size_of::<u32>()],
@@ -35,10 +38,10 @@ async fn test_helloworld() {
         .expect("greeted_account not found");
     assert_eq!(GreetingAccount::try_from_slice(&greeted_account.data).unwrap().counter, 0);
 
-    // Greet once
+    // Greet once. Creating and unsigned transaction and payer who pays to execute the transaction
     let mut transaction = Transaction::new_with_payer(
         &[
-            Instruction::new_with_bincode(
+            Instruction::new_with_bincode( 
                 program_id,
                 &[0], // ignored but makes the instruction unique in the slot
                 vec![AccountMeta::new(greeted_pubkey, false)]
@@ -46,7 +49,9 @@ async fn test_helloworld() {
         ],
         Some(&payer.pubkey())
     );
+    // Before cluster can execute a transaction, it needs to be singed. 
     transaction.sign(&[&payer], recent_blockhash);
+    // Sends transaction to the network. 
     banks_client.process_transaction(transaction).await.unwrap();
 
     // Verify account has one greeting
@@ -54,6 +59,8 @@ async fn test_helloworld() {
         .get_account(greeted_pubkey).await
         .expect("get_account")
         .expect("greeted_account not found");
+
+    // Check that the counter has increased by 1
     assert_eq!(GreetingAccount::try_from_slice(&greeted_account.data).unwrap().counter, 1);
 
     // Greet again
